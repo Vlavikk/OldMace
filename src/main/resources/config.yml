@@ -1,0 +1,25 @@
+#By Vlavik
+#TikTok: @vlavik_ (https://www.tiktok.com/@vlavik_)
+
+# Если у вас на сервере стоит собственный пакет ресурсов,
+# лучше скачайте ресурспак отдельно и объедините его с вашим
+# ссылка на пак: https://www.dropbox.com/scl/fi/8nkllljsod9jhg9d8yarc/OldMacePack.zip?rlkey=zqydig3cha3b29qqcsliz5w6q&st=2al4epdk&dl=1
+resource-pack:
+  #Предлагать загрузить пакет ресурсов входящим игрокам
+  enable: true
+
+  #Обязательная установка пакет ресурсов
+  force: true
+
+  #Тип установки
+  # REMOTE_SERVER - удаленный сервер dropbox
+  # LOCAL_SERVER - локальный сервер, НУЖЕН ДОПОЛНИТЕЛЬНЫЙ ПОРТ
+  type: REMOTE_SERVER
+
+  #Если выбранный тип LOCAL_SERVER
+
+  #Укажите ip сервера
+  local-server-ip: 127.0.0.1
+
+  #Укажите доп.порт, он не должен совпадать с основным!
+  local-server-port: 25566

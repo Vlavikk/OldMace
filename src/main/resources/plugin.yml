@@ -2,3 +2,5 @@ name: OldMace
 version: '${version}'
 main: org.vlavik.oldmace.OldMace
 api-version: '1.16'
+commands:
+  oldmace:
