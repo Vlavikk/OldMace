@@ -178,7 +178,6 @@ public class MaceFixer implements Listener {
     public void onStriderInteract(PlayerInteractEntityEvent event) {
         if (event.getRightClicked() instanceof Strider) {
             Player player = event.getPlayer();
-            // Получаем предмет в той руке, которой кликнули
             ItemStack item = player.getInventory().getItem(event.getHand());
 
             if (item != null && maceManager.isMace(item)) {
