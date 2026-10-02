@@ -68,6 +68,7 @@ public class MaceExecutor implements Listener {
                 pushbackAttacker(attacker);
                 knockbackNearbyMobs(attacker,victim);
 
+                maceManager.applyDamageMace(activeAttackerItem,attacker,1);
                 attacker.setFallDistance(0);
             }
 //            Bukkit.broadcastMessage(e.getFinalDamage()+"");

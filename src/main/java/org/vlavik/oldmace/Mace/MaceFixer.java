@@ -1,232 +1,189 @@
 package org.vlavik.oldmace.Mace;
 
-import io.papermc.paper.event.block.BlockPreDispenseEvent;
-import org.bukkit.Location;
-import org.bukkit.block.Block;
-import org.bukkit.block.data.Directional;
-import org.bukkit.entity.AbstractHorse;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Horse;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainComponentSerializer;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Strider;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.FurnaceBurnEvent;
-import org.bukkit.event.inventory.FurnaceSmeltEvent;
-import org.bukkit.event.inventory.InventoryAction;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryMoveItemEvent;
-import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityTargetEvent;
+import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.inventory.Inventory;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.Repairable;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 import org.vlavik.oldmace.Managers.MaceManager;
 import org.vlavik.oldmace.OldMace;
 
+import java.util.Map;
+
 public class MaceFixer implements Listener {
 
-    //Так как для булавы используется Железная конская броня,
+    //Так как для булавы используется Удочка с наростом,
     // этот класс исключает возможность пользоваться Булавой как конской броней
 
     private static final MaceManager maceManager = OldMace.getMaceManager();
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onSmelt(FurnaceSmeltEvent event) {
-        if (maceManager.isMace(event.getSource())) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onBurn(FurnaceBurnEvent event) {
-        if (maceManager.isMace(event.getFuel())) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onMerchantClick(InventoryClickEvent event) {
-        if (event.getInventory().getType() != InventoryType.MERCHANT) {
-            return;
-        }
-        if (maceManager.isMace(event.getCurrentItem()) || maceManager.isMace(event.getCursor())) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onMerchantDrag(InventoryDragEvent event) {
-        if (event.getInventory().getType() != InventoryType.MERCHANT) {
-            return;
-        }
-        for (ItemStack item : event.getNewItems().values()) {
-            if (maceManager.isMace(item)) {
-                event.setCancelled(true);
-                return;
-            }
-        }
-    }
-
+    //Что то накостылял, вроде работает
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onAnvilPrepare(PrepareAnvilEvent event) {
-        ItemStack first = event.getInventory().getItem(0);
-        ItemStack second = event.getInventory().getItem(1);
-        if (maceManager.isMace(first) || maceManager.isMace(second)) {
+        AnvilInventory inv = event.getInventory();
+        ItemStack first = inv.getItem(0);
+        ItemStack second = inv.getItem(1);
+        if (first == null || !maceManager.isMace(first)) return;
+        if (second != null && !maceManager.isMace(second) && second.getType() != Material.ENCHANTED_BOOK) {
             event.setResult(null);
+            return;
+        }
+
+        ItemStack result = first.clone();
+        ItemMeta meta = result.getItemMeta();
+        boolean hasChanges = false;
+        boolean hasRename = false;
+
+        if (second != null && maceManager.isMace(second)) {
+            ItemMeta secondMeta = second.getItemMeta();
+
+            int health1 = getCustomDurability(first);
+            int health2 = getCustomDurability(second);
+
+            if (health1 < MaceManager.MAX_MACE_DURABILITY || health2 < MaceManager.MAX_MACE_DURABILITY) {
+                int bonus = (int) (MaceManager.MAX_MACE_DURABILITY * 0.12);
+                int newHealth = health1 + health2 + bonus;
+                if (newHealth > MaceManager.MAX_MACE_DURABILITY) newHealth = MaceManager.MAX_MACE_DURABILITY;
+
+                setCustomDurability(meta, newHealth);
+                hasChanges = true;
+            }
+
+            if (mergeEnchantments(meta, secondMeta.getEnchants())) {
+                hasChanges = true;
+            }
+        }
+        else if (second != null && second.getType() == Material.ENCHANTED_BOOK) {
+            EnchantmentStorageMeta bookMeta = (EnchantmentStorageMeta) second.getItemMeta();
+
+            if (mergeEnchantments(meta, bookMeta.getStoredEnchants())) {
+                hasChanges = true;
+            }
+            setCustomDurability(meta, getCustomDurability(first));
+        }
+
+        String renameText = inv.getRenameText();
+        if (renameText != null && !renameText.isEmpty() && !renameText.equals(PlainComponentSerializer.plain().serialize(meta.displayName()))) {
+            meta.displayName(CreateMaceSession.createMaceName(renameText).decoration(TextDecoration.ITALIC,true));
+            hasRename = true;
+        }
+
+        if (!hasChanges && !hasRename) {
+            event.setResult(null);
+            return;
+        }
+        int baseCost = 0;
+        if (meta instanceof Repairable) {
+            Repairable repairable = (Repairable) meta;
+            baseCost = repairable.hasRepairCost() ? repairable.getRepairCost() : 0;
+            repairable.setRepairCost(baseCost * 2 + 1);
+        }
+
+        result.setItemMeta(meta);
+        event.setResult(result);
+
+        int cost = 0;
+        if (hasRename) cost += 1;
+        if (hasChanges) cost += baseCost;
+
+        final int finaleCost = cost;
+        Bukkit.getScheduler().runTask(OldMace.getInstance(), () ->{
+            inv.setRepairCost(finaleCost);
+        });
+    }
+
+
+    private boolean mergeEnchantments(ItemMeta targetMeta, Map<Enchantment, Integer> sourceEnchants) {
+        boolean changed = false;
+        for (Map.Entry<Enchantment, Integer> entry : sourceEnchants.entrySet()) {
+            Enchantment enchant = entry.getKey();
+            int sourceLevel = entry.getValue();
+            int currentLevel = targetMeta.getEnchantLevel(enchant);
+
+            if (currentLevel < sourceLevel) {
+                targetMeta.addEnchant(enchant, sourceLevel, true);
+                changed = true;
+            } else if (currentLevel == sourceLevel && sourceLevel < enchant.getMaxLevel()) {
+                targetMeta.addEnchant(enchant, sourceLevel + 1, true);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private int getCustomDurability(ItemStack item) {
+        if (!item.hasItemMeta()) return MaceManager.MAX_MACE_DURABILITY;
+        PersistentDataContainer pdc = item.getItemMeta().getPersistentDataContainer();
+        return pdc.getOrDefault(MaceManager.actualDurabilityKey, PersistentDataType.INTEGER, MaceManager.MAX_MACE_DURABILITY);
+    }
+
+    private void setCustomDurability(ItemMeta meta, int realHealth) {
+        meta.getPersistentDataContainer().set(MaceManager.actualDurabilityKey, PersistentDataType.INTEGER, realHealth);
+
+        if (meta instanceof Damageable) {
+            Damageable damageable = (Damageable) meta;
+            int visualDamage = 100 - (int) Math.ceil((double) realHealth / 5.0);
+            damageable.setDamage(visualDamage);
+        }
+    }
+    @EventHandler
+    public void onStriderTempt(EntityTargetLivingEntityEvent event) {
+        if (event.getEntity() instanceof Strider) {
+            if (event.getReason() == EntityTargetEvent.TargetReason.TEMPT) {
+                if (event.getTarget() instanceof Player) {
+                    Player player = (Player) event.getTarget();
+                    ItemStack mainHand = player.getInventory().getItemInMainHand();
+                    ItemStack offHand = player.getInventory().getItemInOffHand();
+                    if (maceManager.isMace(mainHand) || maceManager.isMace(offHand)) {
+                        event.setCancelled(true);
+                    }
+                }
+            }
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onHorseInteract(PlayerInteractEntityEvent event) {
-        if (!(event.getRightClicked() instanceof AbstractHorse)) {
-            return;
-        }
+    @EventHandler
+    public void onStriderBoost(PlayerInteractEvent event) {
         Player player = event.getPlayer();
-        ItemStack item = player.getInventory().getItemInMainHand();
-        if (maceManager.isMace(item)) {
-            event.setCancelled(true);
+        if (event.getAction() == Action.RIGHT_CLICK_BLOCK || event.getAction() == Action.RIGHT_CLICK_AIR) {
+            ItemStack item = event.getItem();
+
+            if (item != null && maceManager.isMace(item)) {
+                if (player.getVehicle() instanceof Strider) {
+                    event.setCancelled(true);
+                }
+            }
         }
     }
+    @EventHandler
+    public void onStriderInteract(PlayerInteractEntityEvent event) {
+        if (event.getRightClicked() instanceof Strider) {
+            Player player = event.getPlayer();
+            // Получаем предмет в той руке, которой кликнули
+            ItemStack item = player.getInventory().getItem(event.getHand());
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onMoveItem(InventoryMoveItemEvent event) {
-        if (!isFurnaceLike(event.getDestination().getType())) {
-            return;
-        }
-        if (maceManager.isMace(event.getItem())) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onFurnaceClick(InventoryClickEvent event) {
-        if (!isFurnaceLike(event.getView().getTopInventory().getType())) {
-            return;
-        }
-
-        Inventory clicked = event.getClickedInventory();
-        Inventory top = event.getView().getTopInventory();
-
-        if (clicked != null && clicked.equals(top)) {
-            if (maceManager.isMace(event.getCursor())) {
+            if (item != null && maceManager.isMace(item)) {
                 event.setCancelled(true);
-                return;
-            }
-
-            InventoryAction action = event.getAction();
-            if (action == InventoryAction.HOTBAR_SWAP
-                    || action == InventoryAction.HOTBAR_MOVE_AND_READD
-                    || action == InventoryAction.SWAP_WITH_CURSOR) {
-                ItemStack hotbarItem = event.getWhoClicked().getInventory()
-                        .getItem(event.getHotbarButton());
-                if (maceManager.isMace(hotbarItem)) {
-                    event.setCancelled(true);
-                }
-            }
-            return;
-        }
-
-        if (event.isShiftClick() && maceManager.isMace(event.getCurrentItem())) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onFurnaceDrag(InventoryDragEvent event) {
-        if (!isFurnaceLike(event.getView().getTopInventory().getType())) {
-            return;
-        }
-
-        Inventory top = event.getView().getTopInventory();
-        for (int slot : event.getRawSlots()) {
-            if (slot >= top.getSize()) {
-                continue;
-            }
-            for (ItemStack item : event.getNewItems().values()) {
-                if (maceManager.isMace(item)) {
-                    event.setCancelled(true);
-                    return;
-                }
             }
         }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onHorseInventoryClick(InventoryClickEvent event) {
-        if (!(event.getView().getTopInventory().getHolder() instanceof AbstractHorse)) {
-            return;
-        }
-
-        Inventory clicked = event.getClickedInventory();
-        Inventory top = event.getView().getTopInventory();
-
-        if (clicked != null && clicked.equals(top)) {
-            if (maceManager.isMace(event.getCursor())) {
-                event.setCancelled(true);
-                return;
-            }
-
-            InventoryAction action = event.getAction();
-            if (action == InventoryAction.HOTBAR_SWAP
-                    || action == InventoryAction.HOTBAR_MOVE_AND_READD
-                    || action == InventoryAction.SWAP_WITH_CURSOR) {
-                ItemStack hotbarItem = event.getWhoClicked().getInventory()
-                        .getItem(event.getHotbarButton());
-                if (maceManager.isMace(hotbarItem)) {
-                    event.setCancelled(true);
-                }
-            }
-            return;
-        }
-
-        if (event.isShiftClick() && maceManager.isMace(event.getCurrentItem())) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onHorseInventoryDrag(InventoryDragEvent event) {
-        if (!(event.getView().getTopInventory().getHolder() instanceof AbstractHorse)) {
-            return;
-        }
-
-        Inventory top = event.getView().getTopInventory();
-        for (int slot : event.getRawSlots()) {
-            if (slot >= top.getSize()) {
-                continue;
-            }
-            for (ItemStack item : event.getNewItems().values()) {
-                if (maceManager.isMace(item)) {
-                    event.setCancelled(true);
-                    return;
-                }
-            }
-        }
-    }
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onDispenseArmor(BlockPreDispenseEvent event) {
-        ItemStack item = event.getItemStack();
-        if (!maceManager.isMace(item)) return;
-
-        Block dispenserBlock = event.getBlock();
-        if (!(dispenserBlock.getBlockData() instanceof Directional)) {
-            return;
-        }
-
-        Directional directional = (Directional) dispenserBlock.getBlockData();
-        Block targetBlock = dispenserBlock.getRelative(directional.getFacing());
-        Location targetLoc = targetBlock.getLocation().add(0.5, 0.5, 0.5);
-
-        for (Entity entity : targetBlock.getWorld().getNearbyEntities(targetLoc, 0.7, 0.7, 0.7)) {
-            if (entity instanceof Horse) event.setCancelled(true);
-        }
-    }
-
-    private boolean isFurnaceLike(InventoryType type) {
-        return type == InventoryType.FURNACE
-                || type == InventoryType.BLAST_FURNACE
-                || type == InventoryType.SMOKER;
     }
 }

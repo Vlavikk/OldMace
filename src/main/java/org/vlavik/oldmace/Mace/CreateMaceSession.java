@@ -14,12 +14,14 @@ import org.bukkit.persistence.PersistentDataType;
 import org.vlavik.oldmace.Managers.MaceManager;
 import org.vlavik.oldmace.OldMace;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 public class CreateMaceSession {
     private final MaceManager maceManager = OldMace.getMaceManager();
 
-    private static final Material MACE_MATERIAL = Material.IRON_HORSE_ARMOR;
+    private static final Material MACE_MATERIAL = Material.WARPED_FUNGUS_ON_A_STICK;
     private static final NamespacedKey NAMESPACED_KEY_MACE = new NamespacedKey(OldMace.getInstance(),"mace");
 
     private final ItemStack result;
@@ -30,9 +32,7 @@ public class CreateMaceSession {
     private ItemStack logic(){
         ItemStack itemStack = new ItemStack(MACE_MATERIAL);
         itemStack.editMeta(meta -> {
-            meta.displayName(Component.text("Булава")
-                    .color(NamedTextColor.LIGHT_PURPLE)
-                    .decoration(TextDecoration.ITALIC,false));
+            meta.displayName(createMaceName("Булава"));
 
             meta.setCustomModelData(670001);
             meta.getPersistentDataContainer().set(NAMESPACED_KEY_MACE, PersistentDataType.STRING,"mace");
@@ -85,6 +85,12 @@ public class CreateMaceSession {
 
     public ItemStack getResult() {
         return result;
+    }
+
+    public static Component createMaceName(String name){
+        return Component.text(name)
+                .color(NamedTextColor.LIGHT_PURPLE)
+                .decoration(TextDecoration.ITALIC,false);
     }
 
     public static Material getMaceMaterial() {

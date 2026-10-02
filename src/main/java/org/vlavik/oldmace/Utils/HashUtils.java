@@ -35,6 +35,6 @@ public class HashUtils {
                 digest.update(buffer, 0, read);
             }
         }
-        return digest.digest(); // Возвращает байты хэша
+        return digest.digest();
     }
 }

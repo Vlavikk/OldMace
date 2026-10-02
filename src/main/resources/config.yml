@@ -3,7 +3,7 @@
 
 # Если у вас на сервере стоит собственный пакет ресурсов,
 # лучше скачайте ресурспак отдельно и объедините его с вашим
-# ссылка на пак: https://www.dropbox.com/scl/fi/8nkllljsod9jhg9d8yarc/OldMacePack.zip?rlkey=zqydig3cha3b29qqcsliz5w6q&st=2al4epdk&dl=1
+# ссылка на пак: https://www.dropbox.com/scl/fi/8nkllljsod9jhg9d8yarc/OldMacePack.zip?rlkey=zqydig3cha3b29qqcsliz5w6q&st=oq9a4fht&dl=1
 resource-pack:
   #Предлагать загрузить пакет ресурсов входящим игрокам
   enable: true

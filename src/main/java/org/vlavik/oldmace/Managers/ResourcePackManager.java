@@ -1,26 +1,29 @@
 package org.vlavik.oldmace.Managers;
 
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
+import org.bukkit.plugin.Plugin;
 import org.vlavik.oldmace.Config.Config;
 import org.vlavik.oldmace.Config.ResourcePackConfig;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
-import org.bukkit.plugin.Plugin;
 import org.vlavik.oldmace.OldMace;
 import org.vlavik.oldmace.Utils.HashUtils;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 
 public class ResourcePackManager implements Listener {
     private final ResourcePackConfig resourcePackConfig;
 
-    private final String remoteURLPack = "https://www.dropbox.com/scl/fi/8nkllljsod9jhg9d8yarc/OldMacePack.zip?rlkey=zqydig3cha3b29qqcsliz5w6q&st=2al4epdk&dl=1";
+    private final String remoteURLPack = "https://www.dropbox.com/scl/fi/8nkllljsod9jhg9d8yarc/OldMacePack.zip?rlkey=zqydig3cha3b29qqcsliz5w6q&st=oq9a4fht&dl=1";
 
     private final String PACK_NAME = "OldMacePack.zip";
     private ResourcePackServer packServer;
@@ -31,9 +34,8 @@ public class ResourcePackManager implements Listener {
         resourcePackConfig = new ResourcePackConfig(Config.getYaml());
         if (Type.valueOf(resourcePackConfig.getType()) == Type.LOCAL_SERVER){
             File packFile = new File(plugin.getDataFolder(), PACK_NAME);
-            if (!packFile.exists()) {
-                plugin.saveResource(PACK_NAME, false);
-            }
+            plugin.saveResource(PACK_NAME, true);
+
             packHash = HashUtils.getSha1FromFile(packFile);
             packServer = new ResourcePackServer(plugin,resourcePackConfig.getLocalPort(),PACK_NAME);
             packServer.start();
