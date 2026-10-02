@@ -27,6 +27,12 @@ public class MaceCommand implements CommandExecutor, TabCompleter {
             commandSender.sendMessage("Команда доступна только для Игроков!");
             return false;
         }
+
+        if (!commandSender.isOp()) {
+            commandSender.sendMessage("Вы не можете пользоваться этой командой!");
+            return false;
+        }
+
         Player player = (Player) commandSender;
         if (strings.length >= 1){
             String arg1 = strings[0];
@@ -57,15 +63,17 @@ public class MaceCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (args.length == 1){
-            List<String> list = new ArrayList<>();
-            list.add("getMace");
-            return list;
-        }else if (args.length == 2){
-            if (args[0].equals("getMace")){
+        if (sender.isOp()){
+            if (args.length == 1){
                 List<String> list = new ArrayList<>();
-                list.add("<PlayerName>");
+                list.add("getMace");
                 return list;
+            }else if (args.length == 2){
+                if (args[0].equals("getMace")){
+                    List<String> list = new ArrayList<>();
+                    list.add("<PlayerName>");
+                    return list;
+                }
             }
         }
         return Collections.emptyList();
